@@ -15,6 +15,10 @@ def analyze_telco_churn(filepath):
     df["TotalCharges"] = df["TotalCharges"].fillna(df["MonthlyCharges"] * df["tenure"])
     df = df.dropna()
 
+    lignes_manquantes = df[df.isnull().any(axis=1)]
+    print("\nLignes avec des valeurs manquantes :")
+    print(lignes_manquantes)
+    
     # --- 1. QUEL EST LE TAUX DE CHURN GLOBAL ? ---
     print(" TAUX DE CHURN GLOBAL")
     print("-" * 40)
