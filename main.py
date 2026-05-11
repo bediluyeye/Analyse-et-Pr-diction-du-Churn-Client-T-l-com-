@@ -155,7 +155,7 @@ df_clean = analyze_telco_churn("Telco_Customer_Churn.csv")
 print("CONSTRUCTION DU GRAPHIQUE DE SYNTHeSE VERTICAL...")
 df['tenure_group'] = np.where(df['tenure'] <= 10, 'Nouveau (<= 10m)', 'Ancien (> 10m)')
 
-
+# Facteurs d'Influence Majeurs sur le Churn
 target_vars = {
     'tenure_group': 'Anciennete',
     'Contract': 'Contrat',
@@ -222,26 +222,20 @@ print("\n" + "="*40)
 print("PARTIE 4 : MODeLE PReDICTIF")
 print("="*40)
 
-# 1. Selection des variables
+#  Selection des variables
 X = df_encoded.drop('Churn', axis=1)
 y = df_encoded['Churn']
-
-# 2. Train/Test Split (80% train, 20% test)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-# 3. Scaling (Indispensable pour la Regression Logistique)
+#  Scaling
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
-
-# 4. Entraînement du modele
 model = LogisticRegression(max_iter=1000)
 model.fit(X_train_scaled, y_train)
-
-# 5. Predictions
 y_pred = model.predict(X_test_scaled)
 
-# 6. evaluation
+
 print("\n--- MATRICE DE CONFUSION ---")
 sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues')
 plt.xlabel('Prediction')
@@ -250,10 +244,6 @@ plt.show()
 
 print("\n--- RAPPORT DE PERFORMANCE ---")
 print(classification_report(y_test, y_pred))
-
-# ==========================================
-# PARTIE 5 — INTERPReTATION MeTIER
-# ==========================================
 print("\n" + "="*40)
 print("PARTIE 5 : INTERPReTATION DES COEFFICIENTS")
 print("="*40)
@@ -262,8 +252,8 @@ print("="*40)
 weights = pd.Series(model.coef_[0], index=X.columns).sort_values(ascending=False)
 
 print("Variables les plus impactantes selon le modele :")
-print(weights.head(5)) # Facteurs de risque
-print(weights.tail(5)) # Facteurs de protection
+print(weights.head(5)) 
+print(weights.tail(5))
 
 # Visualisation des coefficients
 plt.figure(figsize=(10, 10))
@@ -272,8 +262,6 @@ plt.title("Poids des variables dans la decision du modele")
 plt.tight_layout()
 plt.show()
 
-
-# --- CALCUL DES MeTRIQUES ---
 accuracy = accuracy_score(y_test, y_pred)
 precision = precision_score(y_test, y_pred)
 recall = recall_score(y_test, y_pred)
@@ -288,7 +276,7 @@ print(f"Rappel (Recall)       : {recall:.2f}  ")
 print(f"Score F1              : {f1:.2f} ")
 print("-" * 40)
 
-# Visualisation des metriques sous forme de graphique pour ton rapport
+
 metrics_names = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
 metrics_values = [accuracy, precision, recall, f1]
 
@@ -303,7 +291,7 @@ for p in ax.patches:
 
 plt.show()
 
-# Sortie du dataset with predictions
+
 df_test_results = X_test.copy()
 df_test_results['Churn_Actual'] = y_test
 df_test_results['Churn_Predicted'] = y_pred
