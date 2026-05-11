@@ -34,16 +34,22 @@ def analyze_telco_churn(filepath):
     # --- 2. LES NOUVEAUX CLIENTS QUITTENT-ILS PLUS ? ---
     print("LES NOUVEAUX CLIENTS QUITTENT-ILS PLUS ?")
     print("-" * 40)
-    tenure_churn = pd.crosstab(df["tenure"] <= 10, df["Churn"], normalize='index') * 100
-    print(f"Churn dans les 10 premiers mois : {tenure_churn.loc[True, 'Yes']:.2f}%")
-    print(f"Churn apres 10 mois : {tenure_churn.loc[False, 'Yes']:.2f}%")
-    
-    plt.figure(figsize=(12, 5))
-    sns.histplot(data=df, x="tenure", hue="Churn", multiple="stack", bins=40, 
-                  palette=['#2ecc71', '#e74c3c'], edgecolor='black')
-    plt.title("Churn selon l'Anciennete (Tenure)", fontsize=14, weight='bold', pad=20)
-    plt.xlabel("Mois d'anciennete", fontsize=11)
-    plt.ylabel("Nombre de clients", fontsize=11)
+    tenure_bins = [0, 12, 24, 36, 48, 60, 72]
+    tenure_labels = ['0-12', '13-24', '25-36', '37-48', '49-60', '61-72']
+    df['tenure_group'] = pd.cut(df['tenure'], bins=tenure_bins, labels=tenure_labels, include_lowest=True, right=True)
+    tenure_churn = df.groupby('tenure_group')['Churn'].apply(lambda x: (x == 'Yes').mean() * 100)
+
+    for label in tenure_labels:
+        print(f"Churn {label} mois : {tenure_churn.loc[label]:.2f}%")
+
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x=tenure_churn.index, y=tenure_churn.values, palette='viridis')
+    plt.title("Taux de churn par groupe d'ancienneté", fontsize=14, weight='bold', pad=20)
+    plt.xlabel("Groupe de tenure (mois)", fontsize=12)
+    plt.ylabel("Taux de churn (%)", fontsize=12)
+    plt.ylim(0, tenure_churn.max() * 1.15)
+    for i, value in enumerate(tenure_churn.values):
+        plt.text(i, value + 1, f"{value:.1f}%", ha='center', va='bottom', fontsize=10, weight='bold')
     plt.tight_layout()
     plt.show()
 
@@ -92,33 +98,44 @@ def analyze_telco_churn(filepath):
     plt.legend(title="Churn", labels=["Non", "Oui"])
     plt.tight_layout()
     plt.show()
-        
-    # Visualisation des profils
-    fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-    
-    sns.countplot(data=df, x="Contract", hue="Churn", ax=axes[0, 0],
-                  palette=['#2ecc71', '#e74c3c'], edgecolor='black', linewidth=1)
-    axes[0, 0].set_title("Churn par Type de Contrat", fontsize=12, weight='bold')
-    axes[0, 0].legend(title="Churn", labels=["Non", "Oui"])
-    
-    sns.countplot(data=df, x="InternetService", hue="Churn", ax=axes[0, 1],
-                  palette=['#2ecc71', '#e74c3c'], edgecolor='black', linewidth=1)
-    axes[0, 1].set_title("Churn par Type de Connexion", fontsize=12, weight='bold')
-    axes[0, 1].legend(title="Churn", labels=["Non", "Oui"])
-    
-   
-    sns.boxplot(data=df, x="Churn", y="MonthlyCharges", hue="Churn", 
-                palette=['#2ecc71', '#e74c3c'], legend=False, ax=axes[1, 0])
-    axes[1, 0].set_title("Distribution des Prix par Churn", fontsize=12, weight='bold')
-    axes[1, 0].set_xticks([0, 1])
-    axes[1, 0].set_xticklabels(["Non", "Oui"])
-    
-    sns.boxplot(data=df, x="Churn", y="tenure", hue="Churn", 
-                palette=['#2ecc71', '#e74c3c'], legend=False, ax=axes[1, 1])
-    axes[1, 1].set_title("Distribution de l'Anciennete par Churn", fontsize=12, weight='bold')
-    axes[1, 1].set_xticks([0, 1])
-    axes[1, 1].set_xticklabels(["Non", "Oui"])
-    
+
+    # --- 6. QUELS PROFILS DE CLIENTS QUITTENT LE PLUS ? ---
+    print("QUELS PROFILS DE CLIENTS QUITTENT LE PLUS ?")
+    print("-" * 40)
+    churn_by_senior = df.groupby("SeniorCitizen")["Churn"].apply(lambda x: (x == "Yes").mean() * 100)
+    churn_by_partner = df.groupby("Partner")["Churn"].apply(lambda x: (x == "Yes").mean() * 100)
+    churn_by_dependents = df.groupby("Dependents")["Churn"].apply(lambda x: (x == "Yes").mean() * 100)
+    churn_by_payment = df.groupby("PaymentMethod")["Churn"].apply(lambda x: (x == "Yes").mean() * 100)
+
+    print(f"Seniors (SeniorCitizen=1) : {churn_by_senior.loc[1]:.1f} % de churn vs {churn_by_senior.loc[0]:.1f} % pour les non-seniors")
+    print(f"Clients sans partenaire : {churn_by_partner.loc['No']:.1f} % de churn vs {churn_by_partner.loc['Yes']:.1f} % pour les clients avec partenaire")
+    print(f"Clients sans enfants à charge : {churn_by_dependents.loc['No']:.1f} % de churn vs {churn_by_dependents.loc['Yes']:.1f}")
+    print(f"Paiement par chèque électronique : {churn_by_payment.loc['Electronic check']:.1f} % de churn (le plus élevé)")
+
+    profile_df = pd.DataFrame({
+        'Segment': [
+            'Seniors', 'Non-seniors',
+            'Sans partenaire', 'Avec partenaire',
+            'Sans enfants', 'Avec enfants',
+            'Electronic check', 'Autres modes de paiement'
+        ],
+        'Churn': [
+            churn_by_senior.loc[1], churn_by_senior.loc[0],
+            churn_by_partner.loc['No'], churn_by_partner.loc['Yes'],
+            churn_by_dependents.loc['No'], churn_by_dependents.loc['Yes'],
+            churn_by_payment.loc['Electronic check'], churn_by_payment.drop('Electronic check').mean()
+        ]
+    })
+
+    plt.figure(figsize=(12, 6))
+    sns.barplot(data=profile_df, x='Segment', y='Churn', palette=['#c0392b', '#27ae60', '#d35400', '#2980b9', '#8e44ad', '#16a085', '#c0392b', '#95a5a6'])
+    plt.title("Profils de clients les plus exposés au churn", fontsize=14, weight='bold', pad=20)
+    plt.ylabel("Taux de churn (%)", fontsize=12)
+    plt.xlabel("")
+    plt.xticks(rotation=30, ha='right')
+    for p in plt.gca().patches:
+        plt.gca().annotate(f"{p.get_height():.1f}%", (p.get_x() + p.get_width() / 2., p.get_height()),
+                           ha='center', va='center', xytext=(0, 9), textcoords='offset points', fontsize=10)
     plt.tight_layout()
     plt.show()
     
@@ -282,8 +299,20 @@ for p in ax.patches:
 
 plt.show()
 
-#Sortie du dataset with predictions
+# Sortie du dataset with predictions
 df_test_results = X_test.copy()
-df_test_results['Churn_Actual'] = y_test    
+df_test_results['Churn_Actual'] = y_test
 df_test_results['Churn_Predicted'] = y_pred
 df_test_results.to_csv("test_results_with_predictions.csv", index=False)
+
+# Résumé final
+n_clients_test = len(df_test_results)
+actual_churn_pct = df_test_results['Churn_Actual'].mean() * 100
+predicted_churn_pct = df_test_results['Churn_Predicted'].mean() * 100
+print("\n" + "="*40)
+print("RÉSUMÉ FINAL DU TEST")
+print("="*40)
+print(f"Nombre de clients en test      : {n_clients_test}")
+print(f"Taux de churn réel (Yes)      : {actual_churn_pct:.2f}%")
+print(f"Taux de churn prédit (Yes)    : {predicted_churn_pct:.2f}%")
+print("="*40)
